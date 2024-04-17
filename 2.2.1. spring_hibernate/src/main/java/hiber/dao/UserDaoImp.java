@@ -11,26 +11,34 @@ import java.util.List;
 @Repository
 public class UserDaoImp implements UserDao {
 
+
+    private final SessionFactory sessionFactory;
+
     @Autowired
-    private SessionFactory sessionFactory;
+    public UserDaoImp(SessionFactory sessionFactory) {
+        this.sessionFactory = sessionFactory;
+    }
 
     @Override
     public void add(User user) {
         sessionFactory.getCurrentSession().save(user);
     }
 
+    // JOIN FETCH user.car - позволит загрузить связанные сущности Car для каждого пользователя в рамках одного запроса,
+    // что должно предотвращать проблему N+1.
     @Override
     @SuppressWarnings("unchecked")
     public List<User> listUsers() {
-        TypedQuery<User> query = sessionFactory.getCurrentSession().createQuery("from User");
+        TypedQuery<User> query = sessionFactory.getCurrentSession().createQuery("SELECT user FROM User user JOIN FETCH user.car");
         return query.getResultList();
     }
 
-//    SELECT DISTINCT u FROM User u LEFT JOIN fetch u.car
-
+    // JOIN FETCH - гарантирует, что все User и связаные с ним Car будут загружены в рамках одного запроса,
+    // что должно предотвращать проблему N+1.
     @Override
+    @SuppressWarnings("unchecked")
     public List<User> getUserByCarModel(String model, int series) {
-        String HQL = "SELECT user FROM User user JOIN user.car car WHERE car.model = :model AND car.series = :series";
+        String HQL = "SELECT DISTINCT user FROM User user JOIN FETCH user.car car WHERE car.model = :model AND car.series = :series";
 
         TypedQuery<User> userTypedQuery = sessionFactory.openSession().createQuery(HQL);
 
@@ -39,5 +47,4 @@ public class UserDaoImp implements UserDao {
 
         return userTypedQuery.getResultList();
     }
-
 }
